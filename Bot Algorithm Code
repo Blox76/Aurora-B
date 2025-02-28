@@ -1,0 +1,31 @@
+```python
+import ccxt
+import time
+
+# Define exchanges
+exchanges = {
+    'binance': ccxt.binance(),
+    'coinbasepro': ccxt.coinbasepro(),
+    'kraken': ccxt.kraken()
+}
+
+# Choose which exchange to use
+exchange = exchanges['binance']  # You can dynamically change this
+
+# Function to fetch current market data
+def fetch_data():
+    ticker = exchange.fetch_ticker('BTC/USDT')
+    return ticker
+
+# Function to place a buy order (simplified)
+def execute_trade(amount, price):
+    print(f"Placing order for {amount} at {price}")
+
+# Main loop for trading strategy
+while True:
+    data = fetch_data()
+    print(f"Current price: {data['last']}")
+    if data['last'] < 30000:  # Example buy condition
+        execute_trade(0.1, data['last'])  # Example trade: buying 0.1 BTC
+    time.sleep(60)
+```
