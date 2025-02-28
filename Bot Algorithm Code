@@ -1,31 +1,58 @@
-```python
 import ccxt
 import time
 
 # Define exchanges
-exchanges = {
-    'binance': ccxt.binance(),
-    'coinbasepro': ccxt.coinbasepro(),
-    'kraken': ccxt.kraken()
-}
+class MultiExchangeBot:
+    def __init__(self, exchange_list):
+        self.exchange_list = exchange_list
+        self.exchanges = {}
+        self.connect_exchanges()
 
-# Choose which exchange to use
-exchange = exchanges['binance']  # You can dynamically change this
+    def connect_exchanges(self):
+        """Connect to all specified exchanges."""
+        for exchange_name in self.exchange_list:
+            try:
+                exchange_class = getattr(ccxt, exchange_name)
+                self.exchanges[exchange_name] = exchange_class()
+            except Exception as e:
+                print(f"Error connecting to {exchange_name}: {e}")
 
-# Function to fetch current market data
-def fetch_data():
-    ticker = exchange.fetch_ticker('BTC/USDT')
-    return ticker
+    def fetch_data(self, exchange_name, symbol='BTC/USDT'):
+        """Fetch market data from a specific exchange."""
+        if exchange_name in self.exchanges:
+            try:
+                ticker = self.exchanges[exchange_name].fetch_ticker(symbol)
+                return ticker
+            except Exception as e:
+                print(f"Error fetching data from {exchange_name}: {e}")
+        else:
+            return f"Exchange {exchange_name} not connected."
 
-# Function to place a buy order (simplified)
-def execute_trade(amount, price):
-    print(f"Placing order for {amount} at {price}")
+    def execute_trade(self, exchange_name, amount, price):
+        """Place a trade on the exchange."""
+        print(f"Placing order for {amount} at {price} on {exchange_name}")
+        # Add your actual trading logic here
 
-# Main loop for trading strategy
+    def get_balance(self, exchange_name):
+        """Returns the balance of a particular exchange."""
+        if exchange_name in self.exchanges:
+            try:
+                balance = self.exchanges[exchange_name].fetch_balance()
+                return balance
+            except Exception as e:
+                return f"Error fetching balance from {exchange_name}: {e}"
+        else:
+            return "Exchange not connected"
+
+# Example usage
+exchange_list = ['binance', 'coinbasepro', 'kraken']  # List of exchanges to connect to
+bot = MultiExchangeBot(exchange_list)
+
 while True:
-    data = fetch_data()
-    print(f"Current price: {data['last']}")
+    data = bot.fetch_data('binance')  # Fetching data from Binance
+    print(f"Current price from Binance: {data['last']}")
+    
     if data['last'] < 30000:  # Example buy condition
-        execute_trade(0.1, data['last'])  # Example trade: buying 0.1 BTC
+        bot.execute_trade('binance', 0.1, data['last'])  # Example trade: buying 0.1 BTC
+    
     time.sleep(60)
-```
