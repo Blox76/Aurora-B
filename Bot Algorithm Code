@@ -46,30 +46,11 @@ class MultiExchangeBot:
 
 # Example usage
 exchange_list = ['binance', 'coinbasepro', 'kraken']  # List of exchanges to connect to
-bot = MultiExchangeBot(exchange_list)
-
-while True:
-    data = bot.fetch_data('binance')  # Fetching data from Binance
-    print(f"Current price from Binance: {data['last']}")
-    
-    if data['last'] < 30000:  # Example buy condition
-        bot.execute_trade('binance', 0.1, data['last'])  # Example trade: buying 0.1 BTC
-    
-    time.sleep(60)import ccxt
+bot = MultiExchangeBot(exchange_list)import ccxt
 import time
 
-# Define exchanges
-exchanges = {
-    'binance': ccxt.binance(),
-    'coinbasepro': ccxt.coinbasepro(),
-    'kraken': ccxt.kraken()
-}
-
-# Choose which exchange to use
-exchange = exchanges['binance']  # You can dynamically change this
-
 # Function to fetch current market data
-def fetch_data():
+def fetch_data(exchange):
     ticker = exchange.fetch_ticker('BTC/USDT')
     return ticker
 
@@ -88,33 +69,25 @@ def stop_loss_take_profit(entry_price, current_price, stop_loss_pct, take_profit
     elif current_price >= take_profit:
         print(f"Take profit triggered at {current_price}, selling BTC.")
         return "sell"
-    return "hold"
+    return "hold"# Function to dynamically adjust stop-loss based on market volatility
+def dynamic_stop_loss(price, volatility_factor=0.02):
+    stop_loss_price = price * (1 - volatility_factor)
+    return stop_loss_price
 
-# Main loop for trading strategy
-while True:
-    data = fetch_data()
-    print(f"Current price: {data['last']}")
-    entry_price = data['last']  # This will be the entry price when a trade is placed
-    
-    if data['last'] < 30000:  # Example buy condition
-        execute_trade(0.1, data['last'])  # Example trade: buying 0.1 BTC
-        entry_price = data['last']  # Update entry price when trade is executed
+# Function to execute trade across multiple exchanges
+def execute_trade_on_multiple_exchanges(amount, price, exchanges):
+    for exchange_name, exchange in exchanges.items():
+        print(f"Executing trade on {exchange_name} for {amount} at {price}")
+        # Here you can place your buy/sell logic for each exchange
 
-    # Stop loss and take profit check
-    trade_decision = stop_loss_take_profit(entry_price, data['last'], stop_loss_pct=5, take_profit_pct=10)
-    
-    if trade_decision == "sell":
-        execute_trade(0.1, data['last'])  # Sell the BTC
-    time.sleep(60)def fetch_data():
-    try:
-        ticker = exchange.fetch_ticker('BTC/USDT')
-        return ticker
-    except ccxt.NetworkError as e:
-        print(f"Network error occurred: {e}")
-        return None
-    except ccxt.ExchangeError as e:
-        print(f"Exchange error occurred: {e}")
-        return Noneimport logging
+# Example strategy: If the price is below a threshold, place a trade
+def execute_strategy(exchanges):
+    data = fetch_data(exchanges['binance'])  # Fetching data from Binance
+    if data['last'] < 30000:
+        stop_loss = dynamic_stop_loss(data['last'])
+        execute_trade_on_multiple_exchanges(0.1, data['last'], exchanges)
+        print(f"Trade executed with stop-loss at {stop_loss}")import logging
+import telegram
 
 # Set up basic logging
 logging.basicConfig(filename='algo_b.log', level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -124,10 +97,6 @@ def log_event(message):
     logging.info(message)
     print(message)
 
-# Example of logging an event
-log_event("Bot started")
-import telegram
-
 # Initialize the Telegram bot (you'll need a bot token)
 bot = telegram.Bot(token="YOUR_BOT_TOKEN")
 
@@ -136,30 +105,96 @@ def send_telegram_notification(message):
     bot.send_message(chat_id="YOUR_CHAT_ID", text=message)
 
 # Example of sending a notification
-send_telegram_notification("Bot started!")# Function to dynamically adjust stop-loss based on market volatility
-def dynamic_stop_loss(price, volatility_factor=0.02):
-    stop_loss_price = price * (1 - volatility_factor)
-    return stop_loss_price
+send_telegram_notification("Bot started!")import ccxt
+import time
+import logging
+import telegram
 
-# Function to execute trade across multiple exchanges
-def execute_trade_on_multiple_exchanges(amount, price):
-    for exchange_name, exchange in bot.exchanges.items():
-        print(f"Executing trade on {exchange_name} for {amount} at {price}")
-        # Here you can place your buy/sell logic for each exchange
+# Define exchanges and bot structure
+class MultiExchangeBot:
+    def __init__(self, exchange_list):
+        self.exchange_list = exchange_list
+        self.exchanges = {}
+        self.connect_exchanges()
 
-# Example strategy: If the price is below a threshold, place a trade
-def execute_strategy():
-    data = fetch_data()
-    if data['last'] < 30000:
-        stop_loss = dynamic_stop_loss(data['last'])
-        execute_trade_on_multiple_exchanges(0.1, data['last'])
-        print(f"Trade executed with stop-loss at {stop_loss}")
+    def connect_exchanges(self):
+        """Connect to all specified exchanges."""
+        for exchange_name in self.exchange_list:
+            try:
+                exchange_class = getattr(ccxt, exchange_name)
+                self.exchanges[exchange_name] = exchange_class()
+            except Exception as e:
+                print(f"Error connecting to {exchange_name}: {e}")
+
+    def fetch_data(self, exchange_name, symbol='BTC/USDT'):
+        """Fetch market data from a specific exchange."""
+        if exchange_name in self.exchanges:
+            try:
+                ticker = self.exchanges[exchange_name].fetch_ticker(symbol)
+                return ticker
+            except Exception as e:
+                print(f"Error fetching data from {exchange_name}: {e}")
+        else:
+            return f"Exchange {exchange_name} not connected."
+
+    def execute_trade(self, exchange_name, amount, price):
+        """Place a trade on the exchange."""
+        print(f"Placing order for {amount} at {price} on {exchange_name}")
+        # Add your actual trading logic here
+
+    def get_balance(self, exchange_name):
+        """Returns the balance of a particular exchange."""
+        if exchange_name in self.exchanges:
+            try:
+                balance = self.exchanges[exchange_name].fetch_balance()
+                return balance
+            except Exception as e:
+                return f"Error fetching balance from {exchange_name}: {e}"
+        else:
+            return "Exchange not connected"
+
+    # Function to dynamically adjust stop-loss based on market volatility
+    def dynamic_stop_loss(self, price, volatility_factor=0.02):
+        stop_loss_price = price * (1 - volatility_factor)
+        return stop_loss_price
+
+    # Function to execute trade across multiple exchanges
+    def execute_trade_on_multiple_exchanges(self, amount, price):
+        for exchange_name, exchange in self.exchanges.items():
+            print(f"Executing trade on {exchange_name} for {amount} at {price}")
+            # Here you can place your buy/sell logic for each exchange
+
+    # Example strategy: If the price is below a threshold, place a trade
+    def execute_strategy(self):
+        data = self.fetch_data('binance')  # Fetching data from Binance
+        if data['last'] < 30000:
+            stop_loss = self.dynamic_stop_loss(data['last'])
+            self.execute_trade_on_multiple_exchanges(0.1, data['last'])
+            print(f"Trade executed with stop-loss at {stop_loss}")
+
+# Initialize logging
+logging.basicConfig(filename='algo_b.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+
+# Logging function to log events
+def log_event(message):
+    logging.info(message)
+    print(message)
+
+# Initialize Telegram bot
+bot = telegram.Bot(token="YOUR_BOT_TOKEN")
+
+# Send a notification via Telegram
+def send_telegram_notification(message):
+    bot.send_message(chat_id="YOUR_CHAT_ID", text=message)
+
+# Example of sending a notification
+send_telegram_notification("Bot started!")
+
+# Example usage
+exchange_list = ['binance', 'coinbasepro', 'kraken']  # List of exchanges to connect to
+bot = MultiExchangeBot(exchange_list)
 
 # Run strategy every minute
 while True:
-    execute_strategy()
+    bot.execute_strategy()
     time.sleep(60)
-
-
-
-
